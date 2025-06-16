@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced MaPLe - 手写数字识别</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .status-success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #2e7d32;
+            border: 2px solid rgba(76, 175, 80, 0.5);
+        }
+
+        .status-error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #c62828;
+            border: 2px solid rgba(244, 67, 54, 0.5);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .input-section, .result-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            background: #4facfe;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.1);
+            transform: scale(1.02);
+        }
+
+        .canvas-container {
+            text-align: center;
+        }
+
+        #drawingCanvas {
+            border: 3px solid #ddd;
+            border-radius: 15px;
+            cursor: crosshair;
+            background: white;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .canvas-controls {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .prediction-number {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .confidence {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .probability-bars {
+            margin-top: 20px;
+        }
+
+        .prob-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .prob-label {
+            width: 30px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .prob-bar {
+            flex: 1;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .prob-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            border-radius: 10px;
+            transition: width 0.8s ease;
+        }
+
+        .prob-value {
+            width: 50px;
+            text-align: right;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .model-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #f44336;
+            margin-top: 15px;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #4caf50;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .prediction-number {
+                font-size: 3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Enhanced MaPLe</h1>
+            <p>基于增强型掩码提示学习的手写数字识别系统</p>
+            <span class="status-badge" id="modelStatus">🔄 检查模型状态中...</span>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2 class="section-title">
+                    📝 输入数字
+                </h2>
+
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('draw')">手绘输入</button>
+                    <button class="tab-button" onclick="switchTab('upload')">文件上传</button>
+                </div>
+
+                <!-- 手绘输入 -->
+                <div id="draw-tab" class="tab-content active">
+                    <div class="canvas-container">
+                        <canvas id="drawingCanvas" width="280" height="280"></canvas>
+                        <div class="canvas-controls">
+                            <button class="btn btn-secondary" onclick="clearCanvas()">清除画布</button>
+                            <button class="btn" onclick="predictFromCanvas()">识别数字</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文件上传 -->
+                <div id="upload-tab" class="tab-content">
+                    <form id="uploadForm">
+                        <div class="upload-area" id="uploadArea">
+                            <div>
+                                <p style="font-size: 2em; margin-bottom: 10px;">📁</p>
+                                <p style="font-size: 1.2em; margin-bottom: 10px;">点击选择文件或拖拽到此处</p>
+                                <p style="color: #666; font-size: 0.9em;">支持 PNG, JPG, JPEG 格式</p>
+                            </div>
+                            <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+                        </div>
+                        <button type="submit" class="btn" style="width: 100%; margin-top: 15px;">上传并识别</button>
+                    </form>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>正在识别中...</p>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2 class="section-title">
+                    🎯 识别结果
+                </h2>
+
+                <div id="resultContent">
+                    <div style="text-align: center; color: #666; padding: 40px;">
+                        <p style="font-size: 3em;">🤖</p>
+                        <p>在左侧输入数字开始识别</p>
+                    </div>
+                </div>
+
+                <div class="model-info" id="modelInfo">
+                    <h3 style="margin-bottom: 15px; color: #333;">📊 模型信息</h3>
+                    <div class="info-item">
+                        <span>模型类型:</span>
+                        <span id="modelType">加载中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span>参数数量:</span>
+                        <span id="paramCount">加载中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span>设备:</span>
+                        <span id="deviceInfo">加载中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Prompt维度:</span>
+                        <span id="promptDim">加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let canvas, ctx;
+        let isDrawing = false;
+        let modelLoaded = false;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initCanvas();
+            initUpload();
+            loadModelInfo();
+        });
+
+        // 初始化画布
+        function initCanvas() {
+            canvas = document.getElementById('drawingCanvas');
+            ctx = canvas.getContext('2d');
+
+            // 设置画布样式
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 20;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // 填充白色背景
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 鼠标事件
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // 触摸事件（移动端支持）
+            canvas.addEventListener('touchstart', handleTouch);
+            canvas.addEventListener('touchmove', handleTouch);
+            canvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' :
+                                            e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 初始化文件上传
+        function initUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('imageInput');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            // 拖拽事件
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    predictFromFile();
+                }
+            });
+
+            // 表单提交
+            document.getElementById('uploadForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                predictFromFile();
+            });
+        }
+
+        // 标签页切换
+        function switchTab(tabName) {
+            // 更新按钮状态
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 更新内容显示
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // 从画布预测
+        function predictFromCanvas() {
+            if (!modelLoaded) {
+                showError('模型未加载，请检查模型状态');
+                return;
+            }
+
+            const dataURL = canvas.toDataURL('image/png');
+            showLoading(true);
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    canvas_data: dataURL
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                displayResult(data);
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('预测失败: ' + error.message);
+            });
+        }
+
+        // 从文件预测
+        function predictFromFile() {
+            if (!modelLoaded) {
+                showError('模型未加载，请检查模型状态');
+                return;
+            }
+
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showError('请选择一个图片文件');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            showLoading(true);
+
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showLoading(false);
+                displayResult(data, data.image_url);
+            })
+            .catch(error => {
+                showLoading(false);
+                showError('预测失败: ' + error.message);
+            });
+        }
+
+        // 显示结果
+        function displayResult(data, imageUrl = null) {
+            const resultContent = document.getElementById('resultContent');
+
+            if (data.success) {
+                let imageHtml = '';
+                if (imageUrl) {
+                    imageHtml = `<img src="${imageUrl}" alt="上传的图片" style="max-width: 100px; max-height: 100px; border-radius: 10px; margin-bottom: 15px;">`;
+                }
+
+                const probabilityBars = data.probabilities.map((prob, index) => `
+                    <div class="prob-item">
+                        <span class="prob-label">${index}</span>
+                        <div class="prob-bar">
+                            <div class="prob-fill" style="width: ${prob}%"></div>
+                        </div>
+                        <span class="prob-value">${prob}%</span>
+                    </div>
+                `).join('');
+
+                resultContent.innerHTML = `
+                    <div class="result-card">
+                        ${imageHtml}
+                        <div class="prediction-number">${data.prediction}</div>
+                        <div class="confidence">置信度: ${data.confidence}%</div>
+                    </div>
+                    <div class="probability-bars">
+                        <h4 style="margin-bottom: 15px; color: #333;">各数字概率分布</h4>
+                        ${probabilityBars}
+                    </div>
+                `;
+
+                showSuccess('识别成功！');
+            } else {
+                showError(data.error || '预测失败');
+            }
+        }
+
+        // 加载模型信息
+        function loadModelInfo() {
+            fetch('/model_info')
+            .then(response => response.json())
+            .then(data => {
+                const statusEl = document.getElementById('modelStatus');
+
+                if (data.loaded) {
+                    modelLoaded = true;
+                    statusEl.textContent = '✅ 模型已加载';
+                    statusEl.className = 'status-badge status-success';
+
+                    // 更新模型信息
+                    document.getElementById('modelType').textContent = data.model_type;
+                    document.getElementById('paramCount').textContent = data.total_parameters.toLocaleString();
+                    document.getElementById('deviceInfo').textContent = data.device;
+                    document.getElementById('promptDim').textContent = data.config.prompt_dim || '未知';
+                } else {
+                    modelLoaded = false;
+                    statusEl.textContent = '❌ 模型未加载';
+                    statusEl.className = 'status-badge status-error';
+
+                    document.getElementById('modelType').textContent = '未加载';
+                    document.getElementById('paramCount').textContent = '0';
+                    document.getElementById('deviceInfo').textContent = '未知';
+                    document.getElementById('promptDim').textContent = '未知';
+
+                    showError('模型未加载，请先运行训练: python enhanced_train.py');
+                }
+            })
+            .catch(error => {
+                modelLoaded = false;
+                const statusEl = document.getElementById('modelStatus');
+                statusEl.textContent = '❌ 连接失败';
+                statusEl.className = 'status-badge status-error';
+                showError('无法连接到后端服务');
+            });
+        }
+
+        // 显示加载状态
+        function showLoading(show) {
+            const loadingEl = document.getElementById('loading');
+            loadingEl.style.display = show ? 'block' : 'none';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const existingError = document.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<strong>错误:</strong> ${message}`;
+
+            document.querySelector('.input-section').appendChild(errorDiv);
+
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // 显示成功信息
+        function showSuccess(message) {
+            const existingSuccess = document.querySelector('.success-message');
+            if (existingSuccess) {
+                existingSuccess.remove();
+            }
+
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.innerHTML = `<strong>成功:</strong> ${message}`;
+
+            document.querySelector('.result-section').appendChild(successDiv);
+
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
